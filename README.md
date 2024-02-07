@@ -1,0 +1,1 @@
+This is a Python CLI script that will search your Contentful CMS space for entries with specific fields. Run ./contentful-search -h for more details. You will need your API keys, space, and environment details which is available from your account settings within Contentful.

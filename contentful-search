@@ -1,0 +1,99 @@
+#!/usr/bin/python3
+
+import requests
+import argparse
+
+class colors:
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    END = '\033[0m'
+
+ascii_art = colors.YELLOW + '''
+                    .--,
+     .-.    __,,,__/    |
+    /   \-'`        `-./_
+    |    |               `)
+     \   `             `\ ;
+    /       ,        ,    |
+    |      /         : O /_             Contentful Content Field Search
+    |          O  .--;__   '.
+    |                (  )`.  |  
+    \                 `-` /  |
+     \          ,_  _.-./`  / 
+      \          \``-.(    /
+      |           `---'   /--.
+    ,--\___..__        _.'   /--.
+    \          `-._  _`/    '    '.
+    .' ` ' .       ``    '        .
+''' + colors.END
+# credit for ascii art to jgs: https://www.asciiart.eu/books/winnie-the-pooh
+
+def options():
+    parser = argparse.ArgumentParser(description=colors.YELLOW + 'Search content fields from entries in Contentful spaces' + colors.END)
+    parser.add_argument('-t', '--token', type=str, help='content delivery access token')
+    parser.add_argument('-s', '--space', type=str, help='space id')
+    parser.add_argument('-e', '--environ', type=str, help='environment name')
+    parser.add_argument('-f', '--fields', type=str, help='comma-separated field names')
+    parser.add_argument('--file', action='store_true', help='file only output (default is console only')
+    return parser.parse_args()
+
+def get_missing_params(args):
+    if not args.token:
+        args.token = input(colors.CYAN + 'Enter Content Delivery Access Token: ' + colors.END)
+    if not args.environ:
+        args.environ = input(colors.CYAN + 'Enter Environment Name: ' + colors.END)
+    if not args.space:
+        args.space = input(colors.CYAN + 'Enter Space ID: ' + colors.END)
+    if not args.fields:
+        args.fields = input(colors.CYAN + 'Enter fields: ' + colors.END).replace(' ', '').split(',')
+
+def get_data(args):
+    skip = 0
+    items = []
+    while True:
+        reqURL = 'https://cdn.contentful.com/spaces/{0}/environments/{1}/entries?access_token={2}&limit=1000&skip={3}'.format(args.space, args.environ, args.token, skip)
+        try:
+            res = requests.get(reqURL)
+            if len(res.json()['items']) == 0:
+                return items
+            
+            items += res.json()['items']
+            skip += 1000
+        except:
+            print(colors.RED + 'Something went wrong. Check your arguments.' + colors.END)
+            exit()
+
+def search_fields(data, fields, createFile):
+    results = []
+    
+    if not createFile:
+        print(colors.YELLOW + '*'*30 + 'RESULTS' + '*'*30)
+
+    for entry in data:
+        for field in fields:
+            if field in entry['fields']:
+                if not createFile:
+                    print(colors.GREEN + entry['fields'][field] + colors.END)
+                results.append(entry['fields'][field])
+
+    if not results:
+        print(colors.YELLOW + '*'*30 + '\nNo results found\n' + '*'*30 + colors.END)
+        exit()
+    return results
+
+def store_in_file(results, args):
+    with open('{0}_{1}'.format(args.environ, args.space), 'w') as f:
+        for result in results:
+            f.write("%s\n" % result)
+
+if __name__ == '__main__':
+    args = options()
+    print(ascii_art)
+    get_missing_params(args)
+    data = get_data(args)
+    results = search_fields(data, args.fields, args.file)
+    if args.file:
+        store_in_file(results, args)
